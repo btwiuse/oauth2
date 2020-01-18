@@ -12,9 +12,9 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const (
-	CLIENT_ID     = "e448c84e25b2ed5aa242"
-	CLIENT_SECRET = "88c18d789caade09222bb61cede5d13276cbfd53"
+var (
+	CLIENT_ID     = os.Getenv("GITHUB_CLIENT_ID")
+	CLIENT_SECRET = os.Getenv("GITHUB_CLIENT_SECRET")
 	REDIRECT_URL  = "https://hub.k0s.io/oauth2/github/callback"
 	AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 	TOKEN_URL     = "https://github.com/login/oauth/access_token"
