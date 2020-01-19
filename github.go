@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -15,55 +16,21 @@ import (
 var (
 	CLIENT_ID     = os.Getenv("GITHUB_CLIENT_ID")
 	CLIENT_SECRET = os.Getenv("GITHUB_CLIENT_SECRET")
-	REDIRECT_URL  = "https://hub.k0s.io/oauth2/github/callback"
+	REDIRECT_URL  = os.Getenv("OAUTH2_REDIRECT_URL")
 	AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 	TOKEN_URL     = "https://github.com/login/oauth/access_token"
 )
 
 func main() {
-	local()
-	os.Exit(0)
-	http.HandleFunc("/auth", HandleCallback)
-	log.Fatal(http.ListenAndServe(":3000", nil))
+	http.HandleFunc("/", HandleIndex)
+	http.HandleFunc("/oauth2/github/callback", HandleCallback)
+	log.Fatal(http.ListenAndServe(":8000", nil))
 }
 
-func local() {
-	oauthConfig := &oauth2.Config{
-		ClientID:     CLIENT_ID,
-		ClientSecret: CLIENT_SECRET,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  AUTHORIZE_URL,
-			TokenURL: TOKEN_URL,
-		},
-		RedirectURL: REDIRECT_URL,
-		Scopes:      getScopes(),
-	}
-
-	code := os.Args[1]
-
-	tkn, err := oauthConfig.Exchange(oauth2.NoContext, code)
-	if err != nil {
-		// Handle Error
-		log.Fatalln(err)
-	}
-
-	if !tkn.Valid() {
-		// Handle error
-		log.Fatalln("token invalid")
-	}
-
-	log.Println("code:", code)
-	log.Println("token:", pretty.JSONString(tkn))
-
-	client := github.NewClient(oauthConfig.Client(oauth2.NoContext, tkn))
-	user, _, err := client.Users.Get(context.Background(), "")
-	if err != nil {
-		// Handle Error
-		log.Fatalln("token invalid")
-	}
-
-	// fmt.Printf("Name: %s\n", *user.Name) // Name: Your Name
-	pretty.JSON(user)
+func HandleIndex(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, fmt.Sprintf(
+		`<a target="_blank" href="https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s">Login<a>`,
+		CLIENT_ID, REDIRECT_URL))
 }
 
 func HandleCallback(w http.ResponseWriter, r *http.Request) {
@@ -80,21 +47,30 @@ func HandleCallback(w http.ResponseWriter, r *http.Request) {
 
 	tkn, err := oauthConfig.Exchange(oauth2.NoContext, r.URL.Query().Get("code"))
 	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/", http.StatusPermanentRedirect)
+		return
 		// Handle Error
 	}
 
 	if !tkn.Valid() {
+		log.Println("token invalid")
+		return
 		// Handle error
 	}
 
 	client := github.NewClient(oauthConfig.Client(oauth2.NoContext, tkn))
 	user, _, err := client.Users.Get(context.Background(), "")
 	if err != nil {
+		log.Println("token invalid")
+		return
 		// Handle Error
 	}
 
-	fmt.Printf("Name: %s\n", *user.Name) // Name: Your Name
-	http.Redirect(w, r, REDIRECT_URL, http.StatusPermanentRedirect)
+	// fmt.Printf("Name: %s\n", *user.Name) // Name: Your Name
+	pretty.JSON(user)
+	io.WriteString(w, pretty.JSONString(user))
+	// http.Redirect(w, r, REDIRECT_URL, http.StatusPermanentRedirect)
 }
 
 func getScopes() []string {
