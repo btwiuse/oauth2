@@ -58,6 +58,7 @@ func HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 		// Handle error
 	}
+	pretty.JSONLine(tkn)
 
 	client := github.NewClient(oauthConfig.Client(oauth2.NoContext, tkn))
 	user, _, err := client.Users.Get(context.Background(), "")
@@ -68,7 +69,7 @@ func HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// fmt.Printf("Name: %s\n", *user.Name) // Name: Your Name
-	pretty.JSON(user)
+	pretty.JSONLine(user)
 	io.WriteString(w, pretty.JSONString(user))
 	// http.Redirect(w, r, REDIRECT_URL, http.StatusPermanentRedirect)
 }
